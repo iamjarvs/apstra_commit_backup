@@ -16,7 +16,8 @@ if str(app_dir) not in sys.path:
     sys.path.insert(0, str(app_dir))
 
 # Import utility functions
-from utils.config import load_config, get_environment_variables, merge_config_with_env
+from utils.config import load_config
+from utils.env_loader import load_environment_variables, apply_env_to_config
 from utils.state import load_state, save_state, update_state
 from services.api_poller import poll_api
 from services.backup_trigger import run_backup_script, get_latest_backup_file
@@ -66,6 +67,10 @@ def parse_arguments():
         default='app/config/config.yaml',
         help='Path to configuration file'
     )
+    parser.add_argument(
+        '--env-file',
+        help='Path to .env file (defaults to .env in the project root)'
+    )
     return parser.parse_args()
 
 def main():
@@ -81,10 +86,15 @@ def main():
     logger = logging.getLogger(__name__)
     
     # Get environment variables
-    env_vars = get_environment_variables()
+    env_vars, env_success = load_environment_variables(args.env_file)
     
-    # Merge config with environment variables
-    config = merge_config_with_env(config, env_vars)
+    if not env_success:
+        logger.error("Missing required environment variables. Service cannot start.")
+        logger.error("Please set APSTRA_USERNAME and APSTRA_PASSWORD environment variables or in .env file.")
+        sys.exit(1)
+    
+    # Apply environment variables to config
+    config = apply_env_to_config(config, env_vars)
     
     # Load initial state
     state_file = config.get("state", {}).get("file_path", "data/backup_state.json")
@@ -107,8 +117,7 @@ def main():
                 logger.info("Changes detected, triggering backup")
                 
                 # Run backup script
-                # backup_script = config.get("backup", {}).get("script_path") or "/usr/sbin/aos_backup"
-                backup_script = "/usr/sbin/aos_backup"
+                backup_script = config.get("backup", {}).get("script_path") or "/usr/sbin/aos_backup"
                 backup_params = config.get("backup", {}).get("parameters", [])
                 
                 success, output, error = run_backup_script(backup_script, backup_params)
@@ -118,7 +127,7 @@ def main():
                     backup_file = get_latest_backup_file(output)
                     if backup_file:
                         # Transfer the backup file
-                        print("Main transfer funtion")
+                        logger.info(f"Transferring backup file: {backup_file}")
                         transfer_success = transfer_file(config, backup_file)
                         
                         if transfer_success:
@@ -128,7 +137,6 @@ def main():
                             save_state(state_file, state)
                         else:
                             logger.error("Failed to transfer backup file")
-                            print(transfer_success)
                     else:
                         logger.error("Could not determine backup file path")
                 else:

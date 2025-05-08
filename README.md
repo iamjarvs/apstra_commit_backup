@@ -22,21 +22,68 @@ A utility that polls Apstra API endpoints for changes and triggers backups when 
    ```
    cp .env.example .env
    ```
-4. Update the configuration in `config.yaml`
+4. Update the configuration in `app/config/config.yaml`
 
 ## Configuration
 
 Configuration is handled through a combination of the `config.yaml` file and environment variables. Sensitive information like passwords should be stored in environment variables rather than the config file.
 
-### Environment Variables
+# Environment Variable Management
 
-The following environment variables are used:
+This application supports two methods for providing environment variables:
+
+1. Using environment variables directly in your system
+2. Using a `.env` file in the project root directory
+
+## Using a .env File
+
+Create a file named `.env` in the project root directory with the following format:
+
+```
+# Apstra API credentials
+APSTRA_USERNAME=admin
+APSTRA_PASSWORD=your_password
+
+# Remote server credentials
+REMOTE_USERNAME=backup_user
+REMOTE_PASSWORD=your_remote_password
+# Alternatively, use SSH key authentication
+SSH_KEY_PATH=/path/to/private_key
+SSH_KEY_PASSPHRASE=your_key_passphrase
+```
+
+The application will automatically load this file if it exists.
+
+## Required Environment Variables
+
+The following environment variables are required:
 
 - `APSTRA_USERNAME`: Username for Apstra API authentication
 - `APSTRA_PASSWORD`: Password for Apstra API authentication
+
+## Optional Environment Variables
+
+These environment variables are optional:
+
 - `REMOTE_USERNAME`: Username for remote server
-- `REMOTE_PASSWORD`: Password for remote server (if using password authentication)
-- `SSH_KEY_PATH`: Path to SSH key for authentication (alternative to password)
+- `REMOTE_PASSWORD`: Password for remote server (for password authentication)
+- `SSH_KEY_PATH`: Path to SSH key file (for key-based authentication)
+- `SSH_KEY_PASSPHRASE`: Passphrase for SSH key if it's protected
+
+## Command Line Options
+
+The application supports the following command line options:
+
+```
+--config PATH     Path to custom config file (default: app/config/config.yaml)
+--env-file PATH   Path to .env file (default: .env in project root)
+```
+
+Example:
+```
+python3 app/main.py --config custom-config.yaml --env-file /path/to/.env
+```
+
 
 ### Configuration File
 
