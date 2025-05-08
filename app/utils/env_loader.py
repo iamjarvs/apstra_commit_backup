@@ -115,10 +115,17 @@ def apply_env_to_config(config, env_vars):
     # Create a new config to avoid modifying the original
     updated_config = config.copy()
     
+    # Log available environment variables (without revealing values)
+    logger.info("Available environment variables:")
+    for key in env_vars:
+        value_status = "Set" if env_vars[key] else "Not set"
+        logger.info(f"  {key}: {value_status}")
+    
     # Apply API authentication if config has api section
     if "api" in updated_config and env_vars.get("APSTRA_USERNAME") and env_vars.get("APSTRA_PASSWORD"):
         updated_config["api"]["username"] = env_vars.get("APSTRA_USERNAME")
         updated_config["api"]["password"] = env_vars.get("APSTRA_PASSWORD")
+        logger.info("Applied API credentials to configuration")
     
     # Apply transfer authentication if config has transfer section
     if "transfer" in updated_config:
@@ -127,17 +134,34 @@ def apply_env_to_config(config, env_vars):
         # Add username if available
         if env_vars.get("REMOTE_USERNAME"):
             transfer_config["username"] = env_vars["REMOTE_USERNAME"]
+            logger.info("Applied remote username to transfer configuration")
         
         # Add password if available
         if env_vars.get("REMOTE_PASSWORD"):
             transfer_config["password"] = env_vars["REMOTE_PASSWORD"]
+            logger.info("Applied remote password to transfer configuration")
         
         # Add SSH key path if available
         if env_vars.get("SSH_KEY_PATH"):
-            transfer_config["ssh_key_path"] = env_vars["SSH_KEY_PATH"]
+            # Ensure the SSH key path is absolute
+            ssh_key_path = env_vars["SSH_KEY_PATH"]
+            if not os.path.isabs(ssh_key_path):
+                # If path is relative, make it absolute relative to home directory
+                if ssh_key_path.startswith("~"):
+                    ssh_key_path = os.path.expanduser(ssh_key_path)
+                else:
+                    ssh_key_path = os.path.abspath(ssh_key_path)
             
+            # Verify the SSH key file exists
+            if os.path.isfile(ssh_key_path):
+                transfer_config["ssh_key_path"] = ssh_key_path
+                logger.info(f"Applied SSH key path to transfer configuration: {ssh_key_path}")
+            else:
+                logger.warning(f"SSH key file not found at: {ssh_key_path}")
+        
         # Add SSH key passphrase if available and needed
         if env_vars.get("SSH_KEY_PASSPHRASE") and env_vars.get("SSH_KEY_PATH"):
             transfer_config["ssh_key_passphrase"] = env_vars["SSH_KEY_PASSPHRASE"]
+            logger.info("Applied SSH key passphrase to transfer configuration")
     
     return updated_config

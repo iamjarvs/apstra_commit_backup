@@ -142,6 +142,12 @@ def main():
     # Apply environment variables to config
     config = apply_env_to_config(config, env_vars)
     
+    # Verify transfer configuration
+    transfer_config = config.get("transfer", {})
+    if "username" not in transfer_config:
+        logger.warning("Remote username not found in configuration")
+        logger.warning("Make sure REMOTE_USERNAME is set in environment or .env file")
+    
     # Load initial state
     state_file = config.get("state", {}).get("file_path", "data/backup_state.json")
     state = load_state(state_file)
@@ -155,6 +161,17 @@ def main():
     signal.signal(signal.SIGTERM, handle_signal)
     
     logger.info("Starting API polling and backup service")
+    
+    # For compatibility with older code - handle single blueprint configuration
+    api_config = config.get("api", {})
+    if "endpoint" in api_config and "blueprints" not in api_config:
+        logger.info("Converting single blueprint configuration to multi-blueprint format")
+        api_config["blueprints"] = [{
+            "id": "default",
+            "name": "Default Blueprint",
+            "endpoint": api_config["endpoint"]
+        }]
+        config["api"] = api_config
     
     # Main polling loop
     global running
