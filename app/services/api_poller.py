@@ -1,5 +1,5 @@
 """
-API polling service for monitoring changes in Apstra revisions.
+API polling service for monitoring changes in Apstra revisions across multiple blueprints.
 """
 import time
 import logging
@@ -154,35 +154,28 @@ def check_for_new_revision(server, token, endpoint, last_revision_id):
     logger.debug(f"No new revision (latest: {latest_id}, previous: {last_revision_id})")
     return False, latest_revision
 
-def poll_api(config, state):
+def poll_api_for_blueprint(config, server, token, blueprint_config, blueprint_state):
     """
-    Poll the API and check for changes.
+    Poll the API for a specific blueprint and check for changes.
     
     Args:
-        config (dict): Configuration dictionary
-        state (dict): Current state
+        config (dict): Global configuration dictionary
+        server (str): Apstra server address
+        token (str): API authentication token
+        blueprint_config (dict): Configuration for this specific blueprint
+        blueprint_state (dict): Current state for this blueprint
         
     Returns:
-        tuple: (changes_detected, new_state, token)
+        tuple: (changes_detected, new_blueprint_state)
     """
-    api_config = config.get("api", {})
-    server = api_config.get("server")
-    endpoint = api_config.get("endpoint")
-    username = api_config.get("username")
-    password = api_config.get("password")
-    
-    if not all([server, endpoint, username, password]):
-        logger.error("Missing required API configuration")
-        return False, state, None
-    
-    # Authenticate
-    token = authenticate(server, username, password)
-    if not token:
-        logger.error("Failed to authenticate to API")
-        return False, state, None
+    blueprint_id = blueprint_config.get("id")
+    blueprint_name = blueprint_config.get("name", blueprint_id)
+    endpoint = blueprint_config.get("endpoint")
     
     # Get the last revision ID from state
-    last_revision_id = state.get("last_revision_id")
+    last_revision_id = blueprint_state.get("last_revision_id")
+    
+    logger.info(f"Polling blueprint: {blueprint_name} ({blueprint_id})")
     
     # Check for new revision
     has_new_revision, latest_revision = check_for_new_revision(
@@ -192,11 +185,86 @@ def poll_api(config, state):
     # If we have a latest revision, update the state
     if latest_revision:
         current_time = datetime.now().isoformat()
-        new_state = {
+        new_blueprint_state = {
             "last_revision_id": latest_revision.get("revision_id"),
-            "last_poll_time": current_time
+            "last_poll_time": current_time,
+            "blueprint_id": blueprint_id,
+            "blueprint_name": blueprint_name
         }
     else:
-        new_state = state
+        new_blueprint_state = blueprint_state
     
-    return has_new_revision, new_state, token
+    return has_new_revision, new_blueprint_state
+
+def poll_api(config, state):
+    """
+    Poll the API for all configured blueprints and check for changes.
+    
+    Args:
+        config (dict): Configuration dictionary
+        state (dict): Current state dictionary (contains state for all blueprints)
+        
+    Returns:
+        tuple: (changes_detected_dict, new_state, token)
+            - changes_detected_dict: Dictionary mapping blueprint IDs to change detection result
+            - new_state: Updated state dictionary with latest revision IDs
+            - token: Authentication token for reuse
+    """
+    api_config = config.get("api", {})
+    server = api_config.get("server")
+    username = api_config.get("username")
+    password = api_config.get("password")
+    blueprints = api_config.get("blueprints", [])
+    
+    # Use legacy single blueprint configuration if blueprints list is empty
+    if not blueprints and api_config.get("endpoint"):
+        blueprints = [{
+            "id": "default",
+            "name": "Default Blueprint",
+            "endpoint": api_config.get("endpoint")
+        }]
+    
+    if not all([server, username, password, blueprints]):
+        logger.error("Missing required API configuration")
+        return {}, state, None
+    
+    # Authenticate
+    token = authenticate(server, username, password)
+    if not token:
+        logger.error("Failed to authenticate to API")
+        return {}, state, None
+    
+    # Initialize response structures
+    changes_detected_dict = {}
+    new_state = state.copy()
+    
+    # Ensure blueprints section exists in state
+    if "blueprints" not in new_state:
+        new_state["blueprints"] = {}
+    
+    # Poll each blueprint
+    for blueprint_config in blueprints:
+        blueprint_id = blueprint_config.get("id")
+        
+        if not blueprint_id:
+            logger.warning("Blueprint configuration missing ID, skipping")
+            continue
+        
+        # Get or initialize state for this blueprint
+        blueprint_state = new_state["blueprints"].get(blueprint_id, {
+            "last_revision_id": None,
+            "last_poll_time": None,
+            "blueprint_id": blueprint_id,
+            "blueprint_name": blueprint_config.get("name", blueprint_id)
+        })
+        
+        # Poll this blueprint
+        has_changes, new_blueprint_state = poll_api_for_blueprint(
+            config, server, token, blueprint_config, blueprint_state
+        )
+        
+        # Update state and result
+        new_state["blueprints"][blueprint_id] = new_blueprint_state
+        changes_detected_dict[blueprint_id] = has_changes
+    
+    return changes_detected_dict, new_state, token
