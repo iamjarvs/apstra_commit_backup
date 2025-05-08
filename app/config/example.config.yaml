@@ -1,16 +1,25 @@
 # API Configuration
 api:
   server: "10.28.143.3"
-  endpoint: "/api/blueprints/494c107b-3620-4be1-9ffc-1ffc8611482b/revisions"
   polling_interval_seconds: 30
   # Authentication will come from environment variables
+
+  # Multiple blueprints configuration
+  blueprints:
+    - id: "494c107b-3620-4be1-9ffc-1ffc8611482b"
+      name: "DataCenter-1"  # Optional friendly name
+      endpoint: "/api/blueprints/494c107b-3620-4be1-9ffc-1ffc8611482b/revisions"
+
+    # Add more blueprints as needed
+    # - id: "blueprint-uuid"
+    #   name: "Friendly-Name"
+    #   endpoint: "/api/blueprints/blueprint-uuid/revisions"
 
 backup:
   script_path: Null
   parameters: []
-  
+
 transfer:
   method: "scp"
   host: "10.28.143.4"
   port: 22
-  remote_directory: "~/"
