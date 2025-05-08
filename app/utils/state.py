@@ -85,7 +85,7 @@ def save_state(state_file_path, state):
         logger.error(f"Error saving state: {str(e)}")
         return False
 
-def update_blueprint_state(state, blueprint_id, revision_id, poll_time, blueprint_name=None):
+def update_state(state, blueprint_id, revision_id, poll_time, blueprint_name=None):
     """
     Update the state for a specific blueprint.
     
@@ -118,7 +118,7 @@ def update_blueprint_state(state, blueprint_id, revision_id, poll_time, blueprin
     
     return state
 
-def get_blueprint_state(state, blueprint_id):
+def get_blueprit_state(state, blueprint_id):
     """
     Get the state for a specific blueprint.
     
