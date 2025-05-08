@@ -121,11 +121,13 @@ def apply_env_to_config(config, env_vars):
         value_status = "Set" if env_vars[key] else "Not set"
         logger.info(f"  {key}: {value_status}")
     
+
     # Apply API authentication if config has api section
     if "api" in updated_config and env_vars.get("APSTRA_USERNAME") and env_vars.get("APSTRA_PASSWORD"):
         updated_config["api"]["username"] = env_vars.get("APSTRA_USERNAME")
         updated_config["api"]["password"] = env_vars.get("APSTRA_PASSWORD")
         logger.info("Applied API credentials to configuration")
+
     
     # Apply transfer authentication if config has transfer section
     if "transfer" in updated_config:
@@ -135,6 +137,7 @@ def apply_env_to_config(config, env_vars):
         if env_vars.get("REMOTE_USERNAME"):
             transfer_config["username"] = env_vars["REMOTE_USERNAME"]
             logger.info("Applied remote username to transfer configuration")
+
         
         # Add password if available
         if env_vars.get("REMOTE_PASSWORD"):

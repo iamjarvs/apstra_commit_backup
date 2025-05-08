@@ -9,6 +9,13 @@ import logging
 import signal
 import argparse
 from pathlib import Path
+from utils.config import load_config
+from utils.env_loader import load_environment_variables, apply_env_to_config
+from utils.state import load_state, save_state, update_state
+from services.api_poller import poll_api
+from services.backup_trigger import run_backup_script, get_latest_backup_file
+from services.transfer import transfer_file
+
 
 # Add the app directory to the path
 app_dir = Path(__file__).resolve().parent
@@ -147,6 +154,7 @@ def main():
     if "username" not in transfer_config:
         logger.warning("Remote username not found in configuration")
         logger.warning("Make sure REMOTE_USERNAME is set in environment or .env file")
+
     
     # Load initial state
     state_file = config.get("state", {}).get("file_path", "data/backup_state.json")
@@ -212,6 +220,7 @@ def main():
                 # If no backups were needed but state changed, update it
                 state = new_state
                 save_state(state_file, state)
+
             
             # Wait for the next polling interval
             polling_interval = config.get("api", {}).get("polling_interval_seconds", 30)
