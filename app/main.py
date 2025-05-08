@@ -9,19 +9,18 @@ import logging
 import signal
 import argparse
 from pathlib import Path
-
-# Add the app directory to the path
-app_dir = Path(__file__).resolve().parent
-if str(app_dir) not in sys.path:
-    sys.path.insert(0, str(app_dir))
-
-# Import utility functions
 from utils.config import load_config
 from utils.env_loader import load_environment_variables, apply_env_to_config
 from utils.state import load_state, save_state, update_state
 from services.api_poller import poll_api
 from services.backup_trigger import run_backup_script, get_latest_backup_file
 from services.transfer import transfer_file
+
+
+# Add the app directory to the path
+app_dir = Path(__file__).resolve().parent
+if str(app_dir) not in sys.path:
+    sys.path.insert(0, str(app_dir))
 
 # Global variables for signal handling
 running = True
